@@ -1,43 +1,50 @@
 import feedparser
-import smtplib
-from email.mime.text import MIMEText
-from email.header import Header
+import requests
+import json
 
-# 1. 设置新闻源 (RSS 订阅源)
+# 1. 设置新闻源
 NEWS_SOURCES = {
     "科技要闻": "https://36kr.com/feed",
     "华尔街见闻": "https://wallstreetcn.com/rss/news"
 }
 
+# 2. ⭐ 填写你刚才复制的钉钉 Webhook 地址
+DINGTALK_WEBHOOK = "https://oapi.dingtalk.com/robot/send?access_token=c7c6812afab21b0ef3236802aa8c1f7fedf356592d07d8f84d086b5c8b89d22e"
+
 def get_news():
-    html_content = "<h2>今日情报摘要</h2>"
+    news_list = []
     for cat, url in NEWS_SOURCES.items():
         feed = feedparser.parse(url)
-        html_content += f"<h3>【{cat}】</h3><ul>"
-        for entry in feed.entries[:5]:
-            html_content += f"<li><a href='{entry.link}'>{entry.title}</a></li>"
-        html_content += "</ul>"
-    return html_content
+        # 每个分类取最新的 3 条
+        for entry in feed.entries[:3]:
+            news_list.append(f"【{cat}】{entry.title}\n🔗 {entry.link}")
+    
+    return "\n\n".join(news_list)
 
-def send_mail(content):
-    # --- 配置区 ---
-    mail_host = "smtp.qq.com"
-    mail_user = "28220987@qq.com"
-    mail_pass = "sxectdcguqtgbgfi"
-    receiver = "beauty4fish@sohu.com"
-
-    message = MIMEText(content, 'html', 'utf-8')
-    message['From'] = Header("AI情报助手", 'utf-8')
-    message['To'] = Header("指挥官", 'utf-8')
-    message['Subject'] = Header("早安！今日行业情报已送达", 'utf-8')
-
+def send_to_dingtalk(content):
+    # 钉钉推送的格式要求
+    headers = {'Content-Type': 'application/json'}
+    payload = {
+        "msgtype": "text",
+        "text": {
+            # ⭐ 注意：内容里必须包含你设置的关键词“情报”
+            "content": f"📢 指挥官，今日情报已送达：\n\n{content}"
+        }
+    }
+    
     try:
-        smtp_obj = smtplib.SMTP_SSL(mail_host, 465)
-        smtp_obj.login(mail_user, mail_pass)
-        smtp_obj.sendmail(mail_user, [receiver], message.as_string())
-        print("🚀 邮件发送成功")
+        response = requests.post(DINGTALK_WEBHOOK, data=json.dumps(payload), headers=headers)
+        if response.status_code == 200:
+            print("🚀 钉钉推送成功！")
+        else:
+            print(f"❌ 推送失败，返回码：{response.status_code}")
     except Exception as e:
-        print(f"❌ 发送失败: {e}")
+        print(f"❌ 发生错误：{e}")
 
 if __name__ == "__main__":
-    send_mail(get_news())
+    # 执行抓取
+    news_data = get_news()
+    if news_data:
+        send_to_dingtalk(news_data)
+    else:
+        print("📭 未抓取到新内容")
