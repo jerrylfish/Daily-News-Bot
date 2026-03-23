@@ -24,7 +24,7 @@ def send_mail(content):
     mail_host = "smtp.qq.com"
     mail_user = "28220987@qq.com"
     mail_pass = "sxectdcguqtgbgfi"
-    receiver = "28220987@qq.com"
+    receiver = "beauty4fish@sohu.com"
 
     message = MIMEText(content, 'html', 'utf-8')
     message['From'] = Header("AI情报助手", 'utf-8')
